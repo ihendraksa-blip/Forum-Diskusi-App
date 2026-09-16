@@ -144,7 +144,7 @@ describe('threads Reducer', () => {
     };
 
     const stateWithThread = threadsReducer(initialState, receiveThreads([mockThread]));
-    
+
     // Multiple users upvote
     threadsReducer(stateWithThread, upVoteThread({ threadId: 'thread-1', userId: 'user-2' }));
     threadsReducer(stateWithThread, upVoteThread({ threadId: 'thread-1', userId: 'user-3' }));
