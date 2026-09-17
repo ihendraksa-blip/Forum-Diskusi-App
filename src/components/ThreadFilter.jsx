@@ -1,7 +1,7 @@
 const ThreadFilter = ({ categories, filter, setFilter }) => {
   return (
     <div className="thread-filter">
-      <label htmlFor="category-filter" for="category-filter">Filter by Category:</label>
+      <label htmlFor="category-filter">Filter by Category:</label>
       <select
         id="category-filter"
         value={filter}
