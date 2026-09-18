@@ -12,7 +12,9 @@ const threadsSlice = createSlice({
       const { threadId, userId } = action.payload;
       const thread = state.find((t) => t.id === threadId);
       if (thread) {
-        thread.upVotesBy.push(userId);
+        if (!thread.upVotesBy.includes(userId)) {
+          thread.upVotesBy.push(userId);
+        }
         thread.downVotesBy = thread.downVotesBy.filter((id) => id !== userId);
       }
     },
@@ -20,7 +22,9 @@ const threadsSlice = createSlice({
       const { threadId, userId } = action.payload;
       const thread = state.find((t) => t.id === threadId);
       if (thread) {
-        thread.downVotesBy.push(userId);
+        if (!thread.downVotesBy.includes(userId)) {
+          thread.downVotesBy.push(userId);
+        }
         thread.upVotesBy = thread.upVotesBy.filter((id) => id !== userId);
       }
     },

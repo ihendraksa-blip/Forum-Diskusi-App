@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ThreadFilter from '../../components/ThreadFilter';
 
 describe('ThreadFilter Component', () => {
@@ -10,7 +10,7 @@ describe('ThreadFilter Component', () => {
     vi.clearAllMocks();
   });
 
-  it('should render filter label and select element', () => {
+  it('should render filter label and select element', async () => {
     render(
       <ThreadFilter
         categories={mockCategories}
@@ -19,8 +19,10 @@ describe('ThreadFilter Component', () => {
       />
     );
 
-    expect(screen.getByLabelText('Filter by Category:')).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Filter by Category:')).toBeInTheDocument();
+      expect(screen.getByRole('combobox')).toBeInTheDocument();
+    });
   });
 
   it('should render "All Categories" as default option', () => {
@@ -118,7 +120,7 @@ describe('ThreadFilter Component', () => {
     expect(options[1].text).toBe('General');
   });
 
-  it('should maintain accessibility with proper label association', () => {
+  it('should maintain accessibility with proper label association', async () => {
     render(
       <ThreadFilter
         categories={mockCategories}
@@ -127,11 +129,13 @@ describe('ThreadFilter Component', () => {
       />
     );
 
-    const label = screen.getByLabelText('Filter by Category:');
-    const select = screen.getByRole('combobox');
+    await waitFor(() => {
+      const label = screen.getByText('Filter by Category:');
+      const select = screen.getByRole('combobox');
 
-    expect(label).toBeInTheDocument();
-    expect(select).toHaveAttribute('id');
-    expect(label).toHaveAttribute('for', select.id);
+      expect(label).toBeInTheDocument();
+      expect(select).toHaveAttribute('id', 'category-filter');
+      expect(label).toHaveAttribute('for', 'category-filter');
+    });
   });
 });

@@ -144,13 +144,12 @@ describe('threads Reducer', () => {
     };
 
     const stateWithThread = threadsReducer(initialState, receiveThreads([mockThread]));
-    
-    // Multiple users upvote
-    threadsReducer(stateWithThread, upVoteThread({ threadId: 'thread-1', userId: 'user-2' }));
-    threadsReducer(stateWithThread, upVoteThread({ threadId: 'thread-1', userId: 'user-3' }));
-    threadsReducer(stateWithThread, upVoteThread({ threadId: 'thread-1', userId: 'user-4' }));
 
-    const finalState = threadsReducer(stateWithThread, upVoteThread({ threadId: 'thread-1', userId: 'user-5' }));
+    // Multiple users upvote - chain the state updates
+    const stateWithUser2 = threadsReducer(stateWithThread, upVoteThread({ threadId: 'thread-1', userId: 'user-2' }));
+    const stateWithUser3 = threadsReducer(stateWithUser2, upVoteThread({ threadId: 'thread-1', userId: 'user-3' }));
+    const stateWithUser4 = threadsReducer(stateWithUser3, upVoteThread({ threadId: 'thread-1', userId: 'user-4' }));
+    const finalState = threadsReducer(stateWithUser4, upVoteThread({ threadId: 'thread-1', userId: 'user-5' }));
 
     expect(finalState[0].upVotesBy).toHaveLength(4);
     expect(finalState[0].upVotesBy).toContain('user-2');

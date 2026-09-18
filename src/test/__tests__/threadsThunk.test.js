@@ -5,6 +5,7 @@ import {
   asyncAddThread,
   asyncUpVoteThread,
   asyncDownVoteThread,
+  asyncNeutralizeThreadVote,
 } from '../../states/threads/action';
 import threadsReducer from '../../states/threads/slice';
 import authUserReducer from '../../states/authUser/slice';
@@ -84,6 +85,18 @@ describe('threads Thunk Actions', () => {
       expect(global.alert).toHaveBeenCalledWith(errorMessage);
       expect(store.getState().threads).toEqual([]);
     });
+
+    it('should handle empty threads response', async () => {
+      api.getAllThreads.mockResolvedValue({
+        data: { threads: [] },
+      });
+
+      await store.dispatch(asyncReceiveThreads());
+
+      const state = store.getState();
+      expect(state.threads).toEqual([]);
+      expect(state.threads).toHaveLength(0);
+    });
   });
 
   describe('asyncAddThread', () => {
@@ -131,6 +144,52 @@ describe('threads Thunk Actions', () => {
 
       await expect(store.dispatch(asyncAddThread(mockThreadData))).rejects.toThrow(errorMessage);
       expect(global.alert).toHaveBeenCalledWith(errorMessage);
+    });
+
+    it('should add thread to existing threads list', async () => {
+      const existingThreads = [
+        {
+          id: 'thread-1',
+          title: 'Existing Thread',
+          body: 'Existing content',
+          category: 'General',
+          ownerId: 'user-1',
+          upVotesBy: [],
+          downVotesBy: [],
+          totalComments: 0,
+          createdAt: '2023-01-01T00:00:00.000Z',
+        },
+      ];
+
+      store.dispatch({ type: 'threads/receiveThreads', payload: existingThreads });
+
+      const mockThreadData = {
+        title: 'New Thread',
+        body: 'New content',
+        category: 'News',
+      };
+
+      const mockCreatedThread = {
+        id: 'thread-2',
+        title: 'New Thread',
+        body: 'New content',
+        category: 'News',
+        ownerId: 'user-1',
+        upVotesBy: [],
+        downVotesBy: [],
+        totalComments: 0,
+        createdAt: '2023-01-02T00:00:00.000Z',
+      };
+
+      api.createThread.mockResolvedValue({
+        data: { thread: mockCreatedThread },
+      });
+
+      await store.dispatch(asyncAddThread(mockThreadData));
+
+      const state = store.getState();
+      expect(state.threads).toHaveLength(2);
+      expect(state.threads[1]).toEqual(mockCreatedThread);
     });
   });
 
@@ -187,6 +246,39 @@ describe('threads Thunk Actions', () => {
       expect(state.threads[0].upVotesBy).not.toContain('user-1');
       expect(api.upVoteThread).not.toHaveBeenCalled();
     });
+
+    it('should handle API failure and neutralize vote', async () => {
+      const mockUser = {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+      };
+
+      const mockThread = {
+        id: 'thread-1',
+        title: 'Test Thread',
+        body: 'Test content',
+        category: 'General',
+        ownerId: 'user-2',
+        upVotesBy: [],
+        downVotesBy: [],
+        totalComments: 0,
+        createdAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      store.dispatch({ type: 'authUser/setAuthUser', payload: mockUser });
+      store.dispatch({ type: 'threads/receiveThreads', payload: [mockThread] });
+
+      const errorMessage = 'Failed to upvote';
+      api.upVoteThread.mockRejectedValue(new Error(errorMessage));
+      global.alert = vi.fn();
+
+      await store.dispatch(asyncUpVoteThread('thread-1'));
+
+      expect(global.alert).toHaveBeenCalledWith(errorMessage);
+      const state = store.getState();
+      expect(state.threads[0].upVotesBy).not.toContain('user-1');
+    });
   });
 
   describe('asyncDownVoteThread', () => {
@@ -221,6 +313,28 @@ describe('threads Thunk Actions', () => {
       expect(api.downVoteThread).toHaveBeenCalledWith('thread-1');
     });
 
+    it('should not downvote when user is not authenticated', async () => {
+      const mockThread = {
+        id: 'thread-1',
+        title: 'Test Thread',
+        body: 'Test content',
+        category: 'General',
+        ownerId: 'user-2',
+        upVotesBy: [],
+        downVotesBy: [],
+        totalComments: 0,
+        createdAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      store.dispatch({ type: 'threads/receiveThreads', payload: [mockThread] });
+
+      await store.dispatch(asyncDownVoteThread('thread-1'));
+
+      const state = store.getState();
+      expect(state.threads[0].downVotesBy).not.toContain('user-1');
+      expect(api.downVoteThread).not.toHaveBeenCalled();
+    });
+
     it('should handle API failure and neutralize vote', async () => {
       const mockUser = {
         id: 'user-1',
@@ -252,6 +366,94 @@ describe('threads Thunk Actions', () => {
       expect(global.alert).toHaveBeenCalledWith(errorMessage);
       const state = store.getState();
       expect(state.threads[0].downVotesBy).not.toContain('user-1');
+    });
+  });
+
+  describe('asyncNeutralizeThreadVote', () => {
+    it('should neutralize vote when user is authenticated', async () => {
+      const mockUser = {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+      };
+
+      const mockThread = {
+        id: 'thread-1',
+        title: 'Test Thread',
+        body: 'Test content',
+        category: 'General',
+        ownerId: 'user-2',
+        upVotesBy: ['user-1'],
+        downVotesBy: [],
+        totalComments: 0,
+        createdAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      store.dispatch({ type: 'authUser/setAuthUser', payload: mockUser });
+      store.dispatch({ type: 'threads/receiveThreads', payload: [mockThread] });
+
+      api.neutralizeThreadVote.mockResolvedValue({});
+
+      await store.dispatch(asyncNeutralizeThreadVote('thread-1'));
+
+      const state = store.getState();
+      expect(state.threads[0].upVotesBy).not.toContain('user-1');
+      expect(state.threads[0].downVotesBy).not.toContain('user-1');
+      expect(api.neutralizeThreadVote).toHaveBeenCalledWith('thread-1');
+    });
+
+    it('should not neutralize when user is not authenticated', async () => {
+      const mockThread = {
+        id: 'thread-1',
+        title: 'Test Thread',
+        body: 'Test content',
+        category: 'General',
+        ownerId: 'user-2',
+        upVotesBy: ['user-1'],
+        downVotesBy: [],
+        totalComments: 0,
+        createdAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      store.dispatch({ type: 'threads/receiveThreads', payload: [mockThread] });
+
+      await store.dispatch(asyncNeutralizeThreadVote('thread-1'));
+
+      const state = store.getState();
+      expect(state.threads[0].upVotesBy).toContain('user-1');
+      expect(api.neutralizeThreadVote).not.toHaveBeenCalled();
+    });
+
+    it('should handle API failure gracefully', async () => {
+      const mockUser = {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+      };
+
+      const mockThread = {
+        id: 'thread-1',
+        title: 'Test Thread',
+        body: 'Test content',
+        category: 'General',
+        ownerId: 'user-2',
+        upVotesBy: ['user-1'],
+        downVotesBy: [],
+        totalComments: 0,
+        createdAt: '2023-01-01T00:00:00.000Z',
+      };
+
+      store.dispatch({ type: 'authUser/setAuthUser', payload: mockUser });
+      store.dispatch({ type: 'threads/receiveThreads', payload: [mockThread] });
+
+      const errorMessage = 'Failed to neutralize vote';
+      api.neutralizeThreadVote.mockRejectedValue(new Error(errorMessage));
+      global.alert = vi.fn();
+
+      await store.dispatch(asyncNeutralizeThreadVote('thread-1'));
+
+      expect(global.alert).toHaveBeenCalledWith(errorMessage);
+      expect(api.neutralizeThreadVote).toHaveBeenCalledWith('thread-1');
     });
   });
 });

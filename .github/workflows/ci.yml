@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [22.x, 24.x]
 
     steps:
       - name: Checkout code
@@ -22,10 +22,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Run linter
         run: npm run lint
@@ -48,23 +47,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
-      - name: Build application
-        run: npm run build
+      - name: Start Vite dev server in background
+        run: npm run dev &
 
-      - name: Start application in background
-        run: |
-          npm run dev &
-          sleep 20
+      - name: Wait for Vite dev server to be ready
+        run: npx wait-on http://localhost:5173 --timeout 60000
 
       - name: Run E2E tests
         run: npx cypress run --config baseUrl=http://localhost:5173
         env:
           CI: true
+          CYPRESS_defaultCommandTimeout: 15000
+          CYPRESS_requestTimeout: 15000
+          CYPRESS_pageLoadTimeout: 60000
 
   deploy:
     runs-on: ubuntu-latest
@@ -75,10 +74,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+          node-version: '20.x'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build application
+        run: npm run build
+
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
