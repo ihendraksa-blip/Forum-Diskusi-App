@@ -9,5 +9,11 @@ export default defineConfig({
     setupFiles: './src/test/setup.js',
     css: true,
     testTimeout: 10000,
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
   },
 });
