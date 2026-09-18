@@ -127,11 +127,11 @@ describe('ThreadFilter Component', () => {
       />
     );
 
-    const label = screen.getByLabelText('Filter by Category:');
+    const label = screen.getByText('Filter by Category:');
     const select = screen.getByRole('combobox');
 
     expect(label).toBeInTheDocument();
     expect(select).toHaveAttribute('id');
-    expect(label).toHaveAttribute('for', select.id);
+    expect(label).toHaveAttribute('htmlFor', select.id);
   });
 });
